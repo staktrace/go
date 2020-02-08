@@ -6,7 +6,7 @@ title: Operation
 offers to exchange currency, changes made to account options, etc.  Operations
 are submitted to the Stellar network grouped in a [Transaction](./transaction.md).
 
-To learn more about the concept of operations in the Stellar network, take a look at the [Stellar operations concept guide](https://www.stellar.org/developers/learn/concepts/operations.html).
+To learn more about the concept of operations in the Stellar network, take a look at the [Stellar operations concept guide](https://www.stellar.org/developers/guides/concepts/operations.html).
 
 ## Operation Types
 
