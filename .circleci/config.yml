@@ -43,32 +43,6 @@ commands:
               ! egrep -irn -A 1 --include=*.go "Action.+needed.+in.+release:.+$CIRCLE_TAG" ./
             fi
 
-  install_stellar_core_debian_package:
-    steps:
-      - run:
-          name: Adding SDF apt repository
-          command: |
-            sudo apt-get update -y
-            sudo apt-get install -y apt-transport-https
-            wget -qO - https://apt.stellar.org/SDF.asc | sudo apt-key add -
-            echo "deb https://apt.stellar.org/public stable/" | sudo tee -a /etc/apt/sources.list.d/SDF.list
-            sudo apt-get update -y
-      - run:
-          name: Installing stellar-core
-          command: |
-            sudo apt-get install -y stellar-core jq
-            (
-              sudo apt-get install postgresql-client-9.6 || (
-                echo "deb http://apt.postgresql.org/pub/repos/apt/ $(env -i bash -c '. /etc/os-release; echo $VERSION_CODENAME')-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list &&
-                wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add - &&
-                sudo apt-get update &&
-                sudo apt-get install postgresql-client-9.6
-              )
-            )
-      - run:
-          name: Creating stellar-core DB
-          command: createdb core
-
   # install_go_deps installs the go dependencies of the project.
   install_go_deps:
     steps:
@@ -121,18 +95,6 @@ commands:
   test_packages:
     steps:
       - run:
-          name: Install dependencies
-          command: |
-            sudo apt-get update
-            (
-              sudo apt-get install postgresql-client-9.6 || (
-                echo "deb http://apt.postgresql.org/pub/repos/apt/ $(env -i bash -c '. /etc/os-release; echo $VERSION_CODENAME')-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list &&
-                wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add - &&
-                sudo apt-get update &&
-                sudo apt-get install postgresql-client-9.6
-              )
-            )
-      - run:
           name: Install dockerize
           command: wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && sudo tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
           environment:
@@ -173,37 +135,17 @@ commands:
 #-----------------------------------------------------------------------------#
 
 jobs:
-  # check_code_1_13 performs code checks using Go 1.13.
-  check_code_1_13:
+  # check_code_1_14 performs code checks using Go 1.14.
+  check_code_1_14:
     working_directory: /go/src/github.com/stellar/go
     docker:
-      - image: circleci/golang:1.13-stretch
+      - image: circleci/golang:1.14-stretch
     steps:
       - install_go_deps
       - check_go_deps
       - gofmt
       - govet
       - staticcheck
-
-  # test_code_1_12 performs all package tests using Go 1.12.
-  test_code_1_12:
-    working_directory: /go/src/github.com/stellar/go
-    docker:
-      - image: circleci/golang:1.12-stretch
-        environment:
-          GO111MODULE: "on"
-          PGHOST: localhost
-          PGPORT: 5432
-          PGUSER: circleci
-          MYSQL_HOST: 127.0.0.1
-          MYSQL_PORT: 3306
-      - image: circleci/postgres:9.6.5-alpine-ram
-        environment:
-          POSTGRES_USER: circleci
-      - image: circleci/redis:5.0-alpine
-    steps:
-      - install_go_deps
-      - test_packages
 
   # test_code_1_13 performs all package tests using Go 1.13.
   test_code_1_13:
@@ -215,6 +157,28 @@ jobs:
           PGHOST: localhost
           PGPORT: 5432
           PGUSER: circleci
+          PGDATABASE: circle_test
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
+      - image: circleci/postgres:9.6.5-alpine-ram
+        environment:
+          POSTGRES_USER: circleci
+      - image: circleci/redis:5.0-alpine
+    steps:
+      - install_go_deps
+      - test_packages
+
+  # test_code_1_14 performs all package tests using Go 1.14.
+  test_code_1_14:
+    working_directory: /go/src/github.com/stellar/go
+    docker:
+      - image: circleci/golang:1.14-stretch
+        environment:
+          GO111MODULE: "on"
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: circleci
+          PGDATABASE: circle_test
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3306
       - image: circleci/postgres:9.6.5-alpine-ram
@@ -233,7 +197,7 @@ jobs:
   publish_artifacts:
     working_directory: /go/src/github.com/stellar/go
     docker:
-      - image: circleci/golang:1.13-stretch
+      - image: circleci/golang:1.14-stretch
     steps:
       - check_deprecations
       - install_go_deps
@@ -304,9 +268,9 @@ workflows:
 
   check_code_and_test:
     jobs:
-      - check_code_1_13
-      - test_code_1_12
+      - check_code_1_14
       - test_code_1_13
+      - test_code_1_14
       - publish_state_diff_docker_image:
           filters:
               branches:
